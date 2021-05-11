@@ -35,9 +35,7 @@ const DENORMAL: &str = "8.442911973260991817129021e-309";
 
 fn dec2flt(criterion: &mut Criterion) {
     let mut group = criterion.benchmark_group("dec2flt");
-    // TODO(ahuszagh) Remove warmup time and change duration to 5.
-    group.warm_up_time(Duration::from_secs_f32(0.5));
-    group.measurement_time(Duration::from_secs_f32(0.5));
+    group.measurement_time(Duration::from_secs(5));
     bench_generator!(group, "fast", FAST_PATH, f64);
     bench_generator!(group, "disguised", DISGUISED_FAST_PATH, f64);
     bench_generator!(group, "moderate", MODERATE_PATH, f64);

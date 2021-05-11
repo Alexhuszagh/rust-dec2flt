@@ -181,7 +181,6 @@ impl RawFloat for f32 {
     }
 
     fn classify(self) -> FpCategory {
-        // TODO(ahuszagh) This is failing... Hmm
         self.classify()
     }
     fn to_bits(self) -> Self::Bits {
