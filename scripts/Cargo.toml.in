@@ -1,0 +1,45 @@
+[package]
+authors = ["The Rust Project Developers", "Alex Huszagh <ahuszagh@gmail.com>"]
+autobenches = false
+name = "dec2flt"
+description = "Minimal fork of num's dec2flt from the Rust core library."
+version = "0.0.1"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/Alexhuszagh/rust-dec2flt"
+edition = "2018"
+publish = false
+
+[dev-dependencies]
+criterion = { version = "0.3", features = ["html_reports"] }
+
+# BINARIES
+# --------
+
+# Simple binaries to test the binary size of dec2flt functions.
+[[bin]]
+name = "core_example"
+path = "bin/core_example.rs"
+
+[[bin]]
+name = "dec2flt_example"
+path = "bin/dec2flt_example.rs"
+
+# BENCHMARKS
+# ----------
+
+[[bench]]
+name = "bench"
+path = "benches/bench.rs"
+harness = false
+
+# PROFILES
+# --------
+
+[profile.bench]
+opt-level = 3
+debug = false
+debug-assertions = false
+lto = true
+
+# DO NOT MODIFY: Auto-generated profiles.
