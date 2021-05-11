@@ -110,7 +110,7 @@ mod fpu_precision {
 ///
 /// This is extracted into a separate function so that it can be attempted before constructing
 /// a bignum.
-pub fn fast_path<T: RawFloat>(integral: &[u8], fractional: &[u8], e: i64) -> Option<T> {
+pub fn fast_path<T: RawFloat>(integral: &[u8], fractional: &[u8], mut e: i64) -> Option<T> {
     let num_digits = integral.len() + fractional.len();
     // log_10(f64::MAX_SIG) ~ 15.95. We compare the exact value to MAX_SIG near the end,
     // this is just a quick, cheap rejection (and also frees the rest of the code from
@@ -118,12 +118,27 @@ pub fn fast_path<T: RawFloat>(integral: &[u8], fractional: &[u8], e: i64) -> Opt
     if num_digits > 16 {
         return None;
     }
-    if e.abs() >= T::CEIL_LOG5_OF_MAX_SIG as i64 {
+    let max_exp = T::FLOOR_LOG5_OF_MAX_SIG as i64;
+    let min_exp = -max_exp;
+    let shift_exp = T::FLOOR_LOG10_OF_MAX_SIG as i64;
+    let disguised_exp = max_exp + shift_exp;
+    if e < min_exp || e > disguised_exp {
         return None;
     }
-    let f = num::from_str_unchecked(integral.iter().chain(fractional.iter()));
+    let mut f = num::from_str_unchecked(integral.iter().chain(fractional.iter()));
     if f > T::MAX_SIG {
         return None;
+    }
+
+    // Handle a disguised fast path case here.
+    if e > max_exp {
+        let shift = e - max_exp;
+        let value = f.checked_mul(T::short_int_pow10(shift as usize))?;
+        if value > T::MAX_SIG {
+            return None;
+        }
+        f = value;
+        e = max_exp;
     }
 
     // The fast path crucially depends on arithmetic being rounded to the correct number of bits

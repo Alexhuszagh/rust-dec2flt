@@ -73,13 +73,21 @@ pub trait RawFloat:
     /// represented, the other code in this module makes sure to never let that happen.
     fn from_int(x: u64) -> Self;
 
+    fn short_int_pow10(e: usize) -> u64 {
+        table::SHORT_POWERS[e]
+    }
+
     /// Gets the value 10<sup>e</sup> from a pre-computed table.
-    /// Panics for `e >= CEIL_LOG5_OF_MAX_SIG`.
+    /// Panics for `e >= FLOOR_LOG5_OF_MAX_SIG`.
     fn short_fast_pow10(e: usize) -> Self;
 
     /// What the name says. It's easier to hard code than juggling intrinsics and
     /// hoping LLVM constant folds it.
-    const CEIL_LOG5_OF_MAX_SIG: i16;
+    const FLOOR_LOG5_OF_MAX_SIG: i16;
+
+    /// What the name says. It's easier to hard code than juggling intrinsics and
+    /// hoping LLVM constant folds it.
+    const FLOOR_LOG10_OF_MAX_SIG: i16;
 
     // A conservative bound on the decimal digits of inputs that can't produce overflow or zero or
     /// subnormals. Probably the decimal exponent of the maximum normal value, hence the name.
@@ -147,7 +155,8 @@ impl RawFloat for f32 {
 
     const SIG_BITS: u8 = 24;
     const EXP_BITS: u8 = 8;
-    const CEIL_LOG5_OF_MAX_SIG: i16 = 11;
+    const FLOOR_LOG5_OF_MAX_SIG: i16 = 10;
+    const FLOOR_LOG10_OF_MAX_SIG: i16 = 7;
     const MAX_NORMAL_DIGITS: usize = 35;
     const INF_CUTOFF: i64 = 40;
     const ZERO_CUTOFF: i64 = -48;
@@ -196,7 +205,8 @@ impl RawFloat for f64 {
 
     const SIG_BITS: u8 = 53;
     const EXP_BITS: u8 = 11;
-    const CEIL_LOG5_OF_MAX_SIG: i16 = 23;
+    const FLOOR_LOG5_OF_MAX_SIG: i16 = 22;
+    const FLOOR_LOG10_OF_MAX_SIG: i16 = 15;
     const MAX_NORMAL_DIGITS: usize = 305;
     const INF_CUTOFF: i64 = 310;
     const ZERO_CUTOFF: i64 = -326;
