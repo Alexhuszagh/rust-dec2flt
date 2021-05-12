@@ -29,35 +29,16 @@ impl Fp {
     }
 
     /// Normalizes itself so that the resulting mantissa is at least `2^63`.
-    pub fn normalize(&self) -> Fp {
+    pub fn normalize(&self) -> (Fp, i16) {
         let mut f = self.f;
         let mut e = self.e;
-        if f >> (64 - 32) == 0 {
-            f <<= 32;
-            e -= 32;
-        }
-        if f >> (64 - 16) == 0 {
-            f <<= 16;
-            e -= 16;
-        }
-        if f >> (64 - 8) == 0 {
-            f <<= 8;
-            e -= 8;
-        }
-        if f >> (64 - 4) == 0 {
-            f <<= 4;
-            e -= 4;
-        }
-        if f >> (64 - 2) == 0 {
-            f <<= 2;
-            e -= 2;
-        }
-        if f >> (64 - 1) == 0 {
-            f <<= 1;
-            e -= 1;
-        }
+        // Get our shift, which is well-optimized in hardware.
+        // Max at 63, since we have 64 leading 0s if we have a 0.
+        let ctlz = f.leading_zeros().min(63) as i16;
+        f <<= ctlz;
+        e -= ctlz;
         debug_assert!(f >= (1 >> 63));
-        Fp { f, e }
+        (Fp { f, e }, ctlz)
     }
 
     /// Normalizes itself to have the shared exponent.

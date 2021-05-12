@@ -79,9 +79,10 @@
 
 use core::fmt;
 
-use self::num::digits_to_big;
+use self::num::{digits_to_big, parse_mantissa};
 use self::parse::{parse_decimal, Decimal, ParseResult, Sign};
 use self::rawfp::RawFloat;
+use core::num::FpCategory;
 
 mod algorithm;
 mod num;
@@ -89,6 +90,7 @@ mod table;
 // These two have their own tests.
 pub mod parse;
 pub mod rawfp;
+pub use self::algorithm::bellerophon;
 
 /// An error which can be returned when parsing a float.
 ///
@@ -176,6 +178,11 @@ pub fn dec2flt<T: RawFloat>(s: &str) -> Result<T, ParseFloatError> {
     }
 }
 
+/// Calculate the exponent relative to the significant digits.
+fn mantissa_exponent(e: i64, fraction_len: usize, truncated: usize) -> i64 {
+    e + truncated as i64 - fraction_len as i64
+}
+
 /// The main workhorse for the decimal-to-float conversion: Orchestrate all the preprocessing
 /// and figure out which algorithm should do the actual conversion.
 fn convert<T: RawFloat>(mut decimal: Decimal<'_>) -> Result<T, ParseFloatError> {
@@ -183,13 +190,28 @@ fn convert<T: RawFloat>(mut decimal: Decimal<'_>) -> Result<T, ParseFloatError> 
     if let Some(x) = trivial_cases(&decimal) {
         return Ok(x);
     }
-    // Remove/shift out the decimal point.
-    let e = decimal.exp - decimal.fractional.len() as i64;
-    if let Some(x) = algorithm::fast_path(decimal.integral, decimal.fractional, e) {
+    // Parse our significant digits, and get the number of truncated digits.
+    let (mantissa, truncated) = parse_mantissa(&decimal);
+    let e = mantissa_exponent(decimal.exp, decimal.fractional.len(), truncated);
+    // Fast path.
+    if let Some(x) = algorithm::fast_path(mantissa, e, &decimal) {
         return Ok(x);
     }
+    // Moderate path.
+    // Now the exponent certainly fits in 16 bit, which is used throughout the main algorithms.
+    let exponent_in_range = table::MIN_E as i64 <= e && e <= table::MAX_E as i64;
+    let mut z: T = T::from_bits(0.into());
+    if exponent_in_range {
+        let (z0, valid) = algorithm::bellerophon(mantissa, e as i16, truncated != 0);
+        if valid {
+            return Ok(z0);
+        }
+        z = z0;
+    };
+
     // Big32x40 is limited to 1280 bits, which translates to about 385 decimal digits.
     // If we exceed this, we'll crash, so we error out before getting too close (within 10^10).
+    let e = decimal.exp - decimal.fractional.len() as i64;
     let upper_bound = bound_intermediate_digits(&decimal, e);
     if upper_bound > 375 {
         return Err(pfe_invalid());
@@ -198,12 +220,13 @@ fn convert<T: RawFloat>(mut decimal: Decimal<'_>) -> Result<T, ParseFloatError> 
 
     // Now the exponent certainly fits in 16 bit, which is used throughout the main algorithms.
     let e = e as i16;
+
     // FIXME These bounds are rather conservative. A more careful analysis of the failure modes
     // of Bellerophon could allow using it in more cases for a massive speed up.
-    let exponent_in_range = table::MIN_E <= e && e <= table::MAX_E;
-    let value_in_range = upper_bound <= T::MAX_NORMAL_DIGITS as u64;
-    if exponent_in_range && value_in_range {
-        Ok(algorithm::bellerophon(&f, e))
+    // algorithm_r cannot handle literal infinities or subnormal values.
+    let exponent_in_range = table::MIN_E_NORMAL <= e && e <= table::MAX_E;
+    if exponent_in_range && !(z.classify() == FpCategory::Infinite) {
+        Ok(algorithm::algorithm_r(&f, e, z))
     } else {
         Ok(algorithm::algorithm_m(&f, e))
     }

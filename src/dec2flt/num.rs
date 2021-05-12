@@ -5,6 +5,7 @@
 use core::cmp::Ordering::{self, Equal, Greater, Less};
 
 pub use crate::bignum::Big32x40 as Big;
+use super::parse::Decimal;
 
 /// Test whether truncating all bits less significant than `ones_place` introduces
 /// a relative error less, equal, or greater than 0.5 ULP.
@@ -45,6 +46,29 @@ where
         result = result * 10 + (c - b'0') as u64;
     }
     result
+}
+
+/// Converts a decimal to the significant digits.
+///
+/// Continues parsing until the end of the buffer, or until
+/// the result overflows. This will happen after 19-20 digits.
+pub fn parse_mantissa(decimal: &Decimal<'_>) -> (u64, usize) {
+    let mut value: u64 = 0;
+    let mut integral = decimal.integral.iter();
+    let mut fractional = decimal.fractional.iter();
+    while let Some(c) = integral.next() {
+        value = match value.checked_mul(10).map(|m| m + (c - b'0') as u64) {
+            Some(v) => v,
+            None => return (value, 1 + integral.count() + fractional.count()),
+        };
+    }
+    while let Some(c) = fractional.next() {
+        value = match value.checked_mul(10).map(|m| m + (c - b'0') as u64) {
+            Some(v) => v,
+            None => return (value, 1 + fractional.count()),
+        };
+    }
+    (value, 0)
 }
 
 /// Converts a string of ASCII digits into a bignum.

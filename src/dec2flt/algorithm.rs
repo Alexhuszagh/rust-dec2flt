@@ -7,6 +7,8 @@ use crate::dec2flt::rawfp::{self, fp_to_float, next_float, prev_float, RawFloat,
 use crate::dec2flt::table;
 use crate::diy_float::Fp;
 
+use super::parse::Decimal;
+
 /// Number of significand bits in Fp
 const P: u32 = 64;
 
@@ -114,8 +116,10 @@ mod fpu_precision {
 ///
 /// This is extracted into a separate function so that it can be attempted before constructing
 /// a bignum.
-pub fn fast_path<T: RawFloat>(integral: &[u8], fractional: &[u8], e: i64) -> Option<T> {
-    let num_digits = integral.len() + fractional.len();
+pub fn fast_path<T: RawFloat>(mantissa: u64, e: i64, decimal: &Decimal<'_>)
+    -> Option<T>
+{
+    let num_digits = decimal.integral.len() + decimal.fractional.len();
     // log_10(f64::MAX_SIG) ~ 15.95. We compare the exact value to MAX_SIG near the end,
     // this is just a quick, cheap rejection (and also frees the rest of the code from
     // worrying about underflow).
@@ -125,8 +129,7 @@ pub fn fast_path<T: RawFloat>(integral: &[u8], fractional: &[u8], e: i64) -> Opt
     if e.abs() >= T::CEIL_LOG5_OF_MAX_SIG as i64 {
         return None;
     }
-    let f = num::from_str_unchecked(integral.iter().chain(fractional.iter()));
-    if f > T::MAX_SIG {
+    if mantissa > T::MAX_SIG {
         return None;
     }
 
@@ -141,9 +144,9 @@ pub fn fast_path<T: RawFloat>(integral: &[u8], fractional: &[u8], e: i64) -> Opt
     // a repeating fractional part in binary, which are rounded, which causes real
     // (and occasionally quite significant!) errors in the final result.
     if e >= 0 {
-        Some(T::from_int(f) * T::short_fast_pow10(e as usize))
+        Some(T::from_int(mantissa) * T::short_fast_pow10(e as usize))
     } else {
-        Some(T::from_int(f) / T::short_fast_pow10(e.abs() as usize))
+        Some(T::from_int(mantissa) / T::short_fast_pow10(e.abs() as usize))
     }
 }
 
@@ -162,31 +165,62 @@ pub fn fast_path<T: RawFloat>(integral: &[u8], fractional: &[u8], e: i64) -> Opt
 /// > accumulated during the floating point calculation of the approximation to f * 10^e. (Slop is
 /// > not a bound for the true error, but bounds the difference between the approximation z and
 /// > the best possible approximation that uses p bits of significand.)
-pub fn bellerophon<T: RawFloat>(f: &Big, e: i16) -> T {
-    let slop = if f <= &Big::from_u64(T::MAX_SIG) {
-        // The cases abs(e) < log5(2^N) are in fast_path()
-        if e >= 0 { 0 } else { 3 }
-    } else {
-        if e >= 0 { 1 } else { 4 }
-    };
-    let z = rawfp::big_to_fp(f).mul(&power_of_ten(e)).normalize();
-    let exp_p_n = 1 << (P - T::SIG_BITS as u32);
-    let lowbits: i64 = (z.f % exp_p_n) as i64;
-    // Is the slop large enough to make a difference when
-    // rounding to n bits?
-    if (lowbits - exp_p_n as i64 / 2).abs() <= slop {
-        algorithm_r(f, e, fp_to_float(z))
-    } else {
-        fp_to_float(z)
+pub fn bellerophon<T: RawFloat>(mantissa: u64, e: i16, truncated: bool)
+    -> (T, bool)
+{
+    // Track errors in terms of ULP.
+    let mut slop = 0;
+    if truncated {
+        slop += 4;
     }
+
+    // Create extended-precision float and multiple by power of 10.
+    let fp = Fp { f: mantissa, e: 0 }.normalize().0;
+    let z = fp.mul(&power_of_ten(e));
+    // Compound error and add error in terms of ULP.
+    if slop != 0 {
+        slop += 1;
+    }
+    slop += 4;
+
+    // Normalize our float and compound our errors.
+    let (z, ctlz) = z.normalize();
+    slop <<= ctlz;
+
+    // Need to handle denormal exponents, which will have a different
+    // number bits and rounding algorithm. Here we want to check if
+    // the rounding is enough to make a different with the slop.
+    let denormal_exp = -T::MAX_EXP - 63;
+    let valid = if z.e <= denormal_exp {
+        // Denormal cases.
+        let shift = P - T::SIG_BITS as u32 + (denormal_exp - z.e) as u32;
+        match shift {
+            // Have an overflowing shl, with a min denormal float
+            64 => (z.f - (1 << 63)) as i64 > slop,
+            _ => {
+                let exp_p_n = 1u64 << (P - T::SIG_BITS as u32);
+                let lowbits: i64 = (z.f % exp_p_n) as i64;
+                (lowbits - (exp_p_n / 2) as i64).abs() > slop
+            }
+        }
+    } else {
+        // Normal cases.
+        let exp_p_n = 1u64 << (P - T::SIG_BITS as u32);
+        let lowbits: i64 = (z.f % exp_p_n) as i64;
+        (lowbits - exp_p_n as i64 / 2).abs() > slop
+    };
+
+    let z0: T = fp_to_float(z);
+    (z0, valid)
 }
+
 
 /// An iterative algorithm that improves a floating point approximation of `f * 10^e`.
 ///
 /// Each iteration gets one unit in the last place closer, which of course takes terribly long to
 /// converge if `z0` is even mildly off. Luckily, when used as fallback for Bellerophon, the
 /// starting approximation is off by at most one ULP.
-fn algorithm_r<T: RawFloat>(f: &Big, e: i16, z0: T) -> T {
+pub fn algorithm_r<T: RawFloat>(f: &Big, e: i16, z0: T) -> T {
     let mut z = z0;
     loop {
         let raw = z.unpack();

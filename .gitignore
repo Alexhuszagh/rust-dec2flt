@@ -3,3 +3,5 @@ Cargo.lock
 Cargo.toml
 TODO.md
 /log
+*.log
+errors.txt

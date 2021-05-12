@@ -244,17 +244,18 @@ impl RawFloat for f64 {
 }
 
 /// Converts an `Fp` to the closest machine float type.
-/// Does not handle subnormal results.
+/// Handles subnormal results and infinities.
 pub fn fp_to_float<T: RawFloat>(x: Fp) -> T {
-    let x = x.normalize();
+    let x = x.normalize().0;
     // x.f is 64 bit, so x.e has a mantissa shift of 63
     let e = x.e + 63;
     if e > T::MAX_EXP {
-        panic!("fp_to_float: exponent {} too large", e)
-    } else if e > T::MIN_EXP {
+        // Always infinity, normalized mantissa so this has to be infinity.
+        T::INFINITY
+    } else if e >= T::MIN_EXP {
         encode_normal(round_normal::<T>(x))
     } else {
-        panic!("fp_to_float: exponent {} too small", e)
+        encode_subnormal(round_subnormal::<T>(x))
     }
 }
 
@@ -275,6 +276,37 @@ pub fn round_normal<T: RawFloat>(x: Fp) -> Unpacked {
         Unpacked::new(T::MIN_SIG, k + 1)
     } else {
         Unpacked::new(q + 1, k)
+    }
+}
+
+/// Round the 64-bit significand to T::SIG_BITS bits with half-to-even.
+/// Does not handle exponent overflow.
+pub fn round_subnormal<T: RawFloat>(x: Fp) -> u64 {
+    // Shift should always be larger than `excess` in round_normal,
+    // since we always have x.exp < T::MIN_EXP.
+    let default = 64 - T::SIG_BITS as i16;
+    // x.f is 64 bit, so x.e has a mantissa shift of 63
+    let e = x.e + 63;
+    // Need to shift normally default, denormal we shift further.
+    let shift = T::MIN_EXP + default - e;
+    // Handle underflow and halfway cases bordering min denormal value.
+    let (half, q, rem) = if shift > 64 {
+        return 0;
+    } else if shift == 64 {
+        // Handle max shift.
+        (1 << 63, 0, u64::MAX)
+    } else {
+        let half: u64 = 1 << (shift - 1);
+        let (q, rem) = (x.f >> shift, x.f & ((1 << shift) - 1));
+        (half, q, rem)
+    };
+    // Adjust mantissa shift
+    // Can't have a carried a bit above the hidden bit, since we shifted
+    // more than (default - 1).
+    if rem < half || rem == half && (q & 1) == 0 {
+        q
+    } else {
+        q + 1
     }
 }
 
@@ -311,13 +343,13 @@ pub fn big_to_fp(f: &Big) -> Fp {
     // We cut off all bits prior to the index `start`, i.e., we effectively right-shift by
     // an amount of `start`, so this is also the exponent we need.
     let e = start as i16;
-    let rounded_down = Fp { f: leading, e }.normalize();
+    let rounded_down = Fp { f: leading, e }.normalize().0;
     // Round (half-to-even) depending on the truncated bits.
     match num::compare_with_half_ulp(f, start) {
         Less => rounded_down,
         Equal if leading % 2 == 0 => rounded_down,
         Equal | Greater => match leading.checked_add(1) {
-            Some(f) => Fp { f, e }.normalize(),
+            Some(f) => Fp { f, e }.normalize().0,
             None => Fp { f: 1 << 63, e: e + 1 },
         },
     }
