@@ -16,9 +16,13 @@ const P: u32 = 64;
 fn power_of_ten(e: i16) -> Fp {
     assert!(e >= table::MIN_E);
     let i = e - table::MIN_E;
-    let sig = table::POWERS.0[i as usize];
-    let exp = table::POWERS.1[i as usize];
-    Fp { f: sig, e: exp }
+    let sig = table::POWERS[i as usize];
+    // Infer binary exp from decimal exp, which is `⌊e * log2(10)⌋ - 63`.
+    // 217706 is ⌈log2(10) * (1<<16)⌉, which is accurate over the entire range.
+    // This has a negligible performance impact, so the exponent should be inferred,
+    // and not stored explicitly.
+    let exp = ((217706 * e as i64) >> 16) - 63;
+    Fp { f: sig, e: exp as i16 }
 }
 
 // In most architectures, floating point operations have an explicit bit size, therefore the
