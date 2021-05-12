@@ -68,6 +68,7 @@ case $profile in
     echo "opt-level = $opt_level" >> Cargo.toml
     echo "debug = true" >> Cargo.toml
     echo "lto = false" >> Cargo.toml
+    exit 0
     shift
     ;;
     release)
@@ -76,6 +77,7 @@ case $profile in
     echo "debug = false" >> Cargo.toml
     echo "debug-assertions = false" >> Cargo.toml
     echo "lto = true" >> Cargo.toml
+    exit 0
     shift
     ;;
     *)

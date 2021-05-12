@@ -10,11 +10,68 @@ repository = "https://github.com/Alexhuszagh/rust-dec2flt"
 edition = "2018"
 publish = false
 
+[dependencies]
+rand = { version = "0.4", optional = true }
+
 [dev-dependencies]
 criterion = { version = "0.3", features = ["html_reports"] }
 
+[features]
+comprehensive_float_test = ["rand"]
+
 # BINARIES
 # --------
+
+# Special testing binaries for the runtests.py scripts.
+[[bin]]
+name = "few_ones"
+path = "data/few_ones.rs"
+required-features = ["comprehensive_float_test"]
+
+[[bin]]
+name = "huge-pow10"
+path = "data/huge-pow10.rs"
+required-features = ["comprehensive_float_test"]
+
+[[bin]]
+name = "long-fractions"
+path = "data/long-fractions.rs"
+required-features = ["comprehensive_float_test"]
+
+[[bin]]
+name = "many-digits"
+path = "data/many-digits.rs"
+required-features = ["comprehensive_float_test"]
+
+[[bin]]
+name = "rand-f64"
+path = "data/rand-f64.rs"
+required-features = ["comprehensive_float_test"]
+
+[[bin]]
+name = "short-decimals"
+path = "data/short-decimals.rs"
+required-features = ["comprehensive_float_test"]
+
+[[bin]]
+name = "subnorm"
+path = "data/subnorm.rs"
+required-features = ["comprehensive_float_test"]
+
+[[bin]]
+name = "tiny-pow10"
+path = "data/tiny-pow10.rs"
+required-features = ["comprehensive_float_test"]
+
+[[bin]]
+name = "u32-small"
+path = "data/u32-small.rs"
+required-features = ["comprehensive_float_test"]
+
+[[bin]]
+name = "u64-pow2"
+path = "data/u64-pow2.rs"
+required-features = ["comprehensive_float_test"]
 
 # Simple binaries to test the binary size of dec2flt functions.
 [[bin]]
