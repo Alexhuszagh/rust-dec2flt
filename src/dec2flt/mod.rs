@@ -9,6 +9,7 @@ mod binary;
 mod common;
 mod decimal;
 mod float;
+mod fpu;
 mod number;
 mod parse;
 mod simple;
