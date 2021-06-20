@@ -44,7 +44,43 @@ fn dec2flt(criterion: &mut Criterion) {
     bench_generator!(group, "denormal", DENORMAL, f64);
 }
 
+fn fast_float(criterion: &mut Criterion) {
+    let mut group = criterion.benchmark_group("fast-float");
+    group.measurement_time(Duration::from_secs(5));
+    group.bench_function("fast", |bench| {
+        bench.iter(|| {
+            black_box(fast_float::parse::<f64, _>(FAST_PATH).unwrap());
+        })
+    });
+    group.bench_function("disguised", |bench| {
+        bench.iter(|| {
+            black_box(fast_float::parse::<f64, _>(DISGUISED_FAST_PATH).unwrap());
+        })
+    });
+    group.bench_function("moderate", |bench| {
+        bench.iter(|| {
+            black_box(fast_float::parse::<f64, _>(MODERATE_PATH).unwrap());
+        })
+    });
+    group.bench_function("halfway", |bench| {
+        bench.iter(|| {
+            black_box(fast_float::parse::<f64, _>(HALFWAY).unwrap());
+        })
+    });
+    group.bench_function("large", |bench| {
+        bench.iter(|| {
+            black_box(fast_float::parse::<f64, _>(LARGE).unwrap());
+        })
+    });
+    group.bench_function("denormal", |bench| {
+        bench.iter(|| {
+            black_box(fast_float::parse::<f64, _>(DENORMAL).unwrap());
+        })
+    });
+}
+
 // MAIN
 
 criterion_group!(dec2flt_benches, dec2flt);
-criterion_main!(dec2flt_benches);
+criterion_group!(fast_float_benches, fast_float);
+criterion_main!(dec2flt_benches, fast_float_benches);

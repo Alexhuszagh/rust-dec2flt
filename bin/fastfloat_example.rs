@@ -1,17 +1,6 @@
-//! Numeric traits and functions for the built-in numeric types.
-
-#![feature(allow_internal_unstable)]
-#![feature(core_intrinsics)]
-#![feature(iter_zip)]
 #![feature(llvm_asm)]
-#![no_std]
 
-// All these modules are technically private and only exposed for coretests:
-pub mod bignum;
-pub mod dec2flt;
-pub mod diy_float;
-
-pub use self::dec2flt::parse_float as parse;
+use fast_float::parse;
 
 /// Sample function to prevent optimization for binaries.
 #[inline]
@@ -22,4 +11,8 @@ pub fn black_box<T>(mut dummy: T) -> T {
         llvm_asm!("" : : "r"(&mut dummy) : "memory" : "volatile");
     }
     dummy
+}
+
+pub fn main() {
+    black_box(parse::<f64, _>("1.2345").unwrap());
 }
