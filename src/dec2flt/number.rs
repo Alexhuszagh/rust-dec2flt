@@ -36,6 +36,15 @@ impl Number {
             && !self.many_digits
     }
 
+    /// The fast path algorithmn using machine-sized integers and floats.
+    ///
+    /// This is extracted into a separate function so that it can be attempted before constructing
+    /// a Decimal. This only works if both the mantissa and the exponent
+    /// can be exactly represented as a machine float, since IEE-754 guarantees
+    /// no rounding will occur.
+    ///
+    /// There is an exception: disguised fast-path cases, where we can shift
+    /// powers-of-10 from the exponent to the significant digits.
     pub fn try_fast_path<F: RawFloat>(&self) -> Option<F> {
         // The fast path crucially depends on arithmetic being rounded to the correct number of bits
         // without any intermediate rounding. On x86 (without SSE or SSE2) this requires the precision

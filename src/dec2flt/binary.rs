@@ -1,11 +1,11 @@
-use crate::dec2flt::common::AdjustedMantissa;
+use crate::dec2flt::common::Fp;
 use crate::dec2flt::float::RawFloat;
 use crate::dec2flt::table::{LARGEST_POWER_OF_FIVE, POWER_OF_FIVE_128, SMALLEST_POWER_OF_FIVE};
 
-pub fn compute_float<F: RawFloat>(q: i64, mut w: u64) -> AdjustedMantissa {
-    let am_zero = AdjustedMantissa::zero_pow2(0);
-    let am_inf = AdjustedMantissa::zero_pow2(F::INFINITE_POWER);
-    let am_error = AdjustedMantissa::zero_pow2(-1);
+pub fn compute_float<F: RawFloat>(q: i64, mut w: u64) -> Fp {
+    let am_zero = Fp::zero_pow2(0);
+    let am_inf = Fp::zero_pow2(F::INFINITE_POWER);
+    let am_error = Fp::zero_pow2(-1);
 
     if w == 0 || q < F::SMALLEST_POWER_OF_TEN as i64 {
         return am_zero;
@@ -32,7 +32,7 @@ pub fn compute_float<F: RawFloat>(q: i64, mut w: u64) -> AdjustedMantissa {
         mantissa += mantissa & 1;
         mantissa >>= 1;
         power2 = (mantissa >= (1_u64 << F::MANTISSA_EXPLICIT_BITS)) as i32;
-        return AdjustedMantissa { mantissa, power2 };
+        return Fp { mantissa, power2 };
     }
     if lo <= 1
         && q >= F::MIN_EXPONENT_ROUND_TO_EVEN as i64
@@ -52,7 +52,7 @@ pub fn compute_float<F: RawFloat>(q: i64, mut w: u64) -> AdjustedMantissa {
     if power2 >= F::INFINITE_POWER {
         return am_inf;
     }
-    AdjustedMantissa { mantissa, power2 }
+    Fp { mantissa, power2 }
 }
 
 fn power(q: i32) -> i32 {

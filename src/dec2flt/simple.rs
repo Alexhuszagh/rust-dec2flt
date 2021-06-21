@@ -1,8 +1,8 @@
-use crate::dec2flt::common::AdjustedMantissa;
+use crate::dec2flt::common::Fp;
 use crate::dec2flt::decimal::{parse_decimal, Decimal};
 use crate::dec2flt::float::RawFloat;
 
-pub fn parse_long_mantissa<F: RawFloat>(s: &[u8]) -> AdjustedMantissa {
+pub fn parse_long_mantissa<F: RawFloat>(s: &[u8]) -> Fp {
     const MAX_SHIFT: usize = 60;
     const NUM_POWERS: usize = 19;
     const POWERS: [u8; 19] = [
@@ -17,8 +17,8 @@ pub fn parse_long_mantissa<F: RawFloat>(s: &[u8]) -> AdjustedMantissa {
         }
     };
 
-    let am_zero = AdjustedMantissa::zero_pow2(0);
-    let am_inf = AdjustedMantissa::zero_pow2(F::INFINITE_POWER);
+    let am_zero = Fp::zero_pow2(0);
+    let am_inf = Fp::zero_pow2(F::INFINITE_POWER);
 
     let mut d = parse_decimal(s);
 
@@ -80,5 +80,5 @@ pub fn parse_long_mantissa<F: RawFloat>(s: &[u8]) -> AdjustedMantissa {
         power2 -= 1;
     }
     mantissa &= (1_u64 << F::MANTISSA_EXPLICIT_BITS) - 1;
-    AdjustedMantissa { mantissa, power2 }
+    Fp { mantissa, power2 }
 }
