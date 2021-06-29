@@ -1,3 +1,5 @@
+//! Functions to parse floating-point numbers.
+
 use crate::dec2flt::common::{is_8digits, AsciiStr, ByteSlice};
 use crate::dec2flt::float::RawFloat;
 use crate::dec2flt::number::Number;

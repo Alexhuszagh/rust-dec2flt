@@ -1,3 +1,5 @@
+//! Common utilities, for internal use only.
+
 use core::marker::PhantomData;
 use core::ptr;
 
