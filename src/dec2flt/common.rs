@@ -190,7 +190,9 @@ pub fn parse_digits(s: &mut &[u8], mut f: impl FnMut(u8)) {
 /// power2 is biased, so it be directly shifted into the exponent bits.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
 pub struct Fp {
+    /// The significant digits.
     pub mantissa: u64,
+    /// The biased, binary exponent.
     pub power2: i32,
 }
 

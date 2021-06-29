@@ -104,7 +104,6 @@ impl Decimal {
         }
     }
 
-    /// TODO(ahuszagh) Document...
     pub fn round(&self) -> u64 {
         if self.num_digits == 0 || self.decimal_point < 0 {
             return 0;
@@ -132,7 +131,6 @@ impl Decimal {
         n
     }
 
-    /// TODO(ahuszagh) Document..
     pub fn left_shift(&mut self, shift: usize) {
         if self.num_digits == 0 {
             return;
@@ -173,7 +171,6 @@ impl Decimal {
         self.trim();
     }
 
-    /// TODO(ahuszagh) Document..
     pub fn right_shift(&mut self, shift: usize) {
         let mut read_index = 0;
         let mut write_index = 0;
@@ -294,7 +291,6 @@ pub fn parse_decimal(mut s: &[u8]) -> Decimal {
     d
 }
 
-/// TODO(ahuszagh) Document...
 fn number_of_digits_decimal_left_shift(d: &Decimal, mut shift: usize) -> usize {
     const TABLE: [u16; 65] = [
         0x0000, 0x0800, 0x0801, 0x0803, 0x1006, 0x1009, 0x100D, 0x1812, 0x1817, 0x181D, 0x2024,

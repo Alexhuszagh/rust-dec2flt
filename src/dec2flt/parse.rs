@@ -9,7 +9,9 @@ const MIN_19DIGIT_INT: u64 = 100_0000_0000_0000_0000;
 /// This uses the trick where every digit is in [0x030, 0x39],
 /// and therefore can be parsed in 3 multiplications, much
 /// faster than the normal 8.
-/// TODO(ahuszagh) Add reference to the blog explaining the alogrithm.
+///
+/// This is based off the algorithm described in "Fast numeric string to
+/// int", available here: <https://johnnylee-sde.github.io/Fast-numeric-string-to-int/>.
 fn parse_8digits(mut v: u64) -> u64 {
     const MASK: u64 = 0x0000_00FF_0000_00FF;
     const MUL1: u64 = 0x000F_4240_0000_0064;
