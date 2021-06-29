@@ -72,12 +72,12 @@ impl<'a> AsciiStr<'a> {
         }
     }
 
-    /// Check if the .
-    // TODO(ahuszagh) This might be undefined behavior.
+    /// Check if the slice at least `n` length.
     pub fn check_len(&self, n: usize) -> bool {
-        unsafe { self.ptr.add(n) <= self.end }
+        unsafe { n <= self.end.offset_from(self.ptr) as usize }
     }
 
+    /// Try to read the next 8 bytes from the slice.
     pub fn try_read_u64(&self) -> Option<u64> {
         if self.check_len(8) {
             Some(self.read_u64())

@@ -1,3 +1,6 @@
+//! Platform-specific, assembly instructions to avoid
+//! intermediate rounding on architectures with FPUs.
+
 pub use fpu_precision::set_precision;
 
 // On x86, the x87 FPU is used for float operations if the SSE/SSE2 extensions are not available.

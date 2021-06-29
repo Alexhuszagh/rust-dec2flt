@@ -70,19 +70,19 @@
 
 use core::fmt;
 
-use self::binary::compute_float;
 use self::float::RawFloat;
+use self::lemire::compute_float;
 use self::parse::{parse_inf_nan, parse_number};
-use self::simple::parse_long_mantissa;
+use self::slow::parse_long_mantissa;
 
-mod binary;
 mod common;
 mod decimal;
 mod float;
 mod fpu;
+mod lemire;
 mod number;
 mod parse;
-mod simple;
+mod slow;
 mod table;
 
 /// An error which can be returned when parsing a float.
@@ -156,8 +156,10 @@ pub fn parse_float<F: RawFloat>(s: &str) -> Result<F, ParseFloatError> {
         return Ok(value);
     }
 
+    // Avoid redundantly using the Eisel-Lemire algorithm
+    // if it errored on the first pass.
     let mut am = compute_float::<F>(num.exponent, num.mantissa);
-    if num.many_digits && am != compute_float::<F>(num.exponent, num.mantissa + 1) {
+    if num.many_digits && am.power2 >= 0 && am != compute_float::<F>(num.exponent, num.mantissa + 1) {
         am.power2 = -1;
     }
     if am.power2 < 0 {

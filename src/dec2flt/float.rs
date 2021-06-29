@@ -1,3 +1,5 @@
+//! Helper trait for generic float types.
+
 use core::fmt::{Debug, Display, LowerExp};
 use core::ops::{Add, Div, Mul, Neg};
 

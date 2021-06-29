@@ -1,7 +1,22 @@
+//! Implementation of the Eisel-Lemire algorithm.
+
 use crate::dec2flt::common::Fp;
 use crate::dec2flt::float::RawFloat;
 use crate::dec2flt::table::{LARGEST_POWER_OF_FIVE, POWER_OF_FIVE_128, SMALLEST_POWER_OF_FIVE};
 
+/// Compute a float using an extended-precision representation.
+///
+/// Fast conversion of a the significant digits and decimal exponent
+/// a float to a extended representation with a binary float. This
+/// algorithm will accurately parse the vast majority of cases,
+/// and uses a 128-bit representation (with a fallback 192-bit
+/// representation).
+///
+/// This algorithm scales the exponent by the decimal exponent
+/// using pre-computed powers-of-5, and calculates if the
+/// representation can be unambiguously rounded to the nearest
+/// machine float. Near-halfway cases are not handled here,
+/// and are represented by a negative, biased binary exponent.
 pub fn compute_float<F: RawFloat>(q: i64, mut w: u64) -> Fp {
     let am_zero = Fp::zero_pow2(0);
     let am_inf = Fp::zero_pow2(F::INFINITE_POWER);

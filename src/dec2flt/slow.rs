@@ -1,7 +1,25 @@
+//! Slow, fallback algorithm for cases the Eisel-Lemire algorithm cannot round.
+
 use crate::dec2flt::common::Fp;
 use crate::dec2flt::decimal::{parse_decimal, Decimal};
 use crate::dec2flt::float::RawFloat;
 
+/// Parse the significant digits and biased, binary exponent of a float.
+///
+/// This is a fallback algorithm that uses a big-integer representation
+/// of the float, and therefore is considerably slower than faster
+/// approximations. However, it will always determine how to round
+/// the significant digits to the nearest machine float, allowing
+/// use to handle near half-way cases.
+///
+/// Near half-way cases are halfway between two consecutive machine floats.
+/// For example, the float `16777217.0` has a bitwise representation of
+/// `100000000000000000000000 1`. Rounding to a single-precision float,
+/// the trailing `1` is truncated. Using round-nearest, tie-even, any
+/// value above `16777217.0` must be rounded up to `16777218.0`, while
+/// any value before or equal to `16777217.0` must be rounded down
+/// to `16777216.0`. These near-halfway conversions therefore may require
+/// a large number of digits to unambiguously determine how to round.
 pub fn parse_long_mantissa<F: RawFloat>(s: &[u8]) -> Fp {
     const MAX_SHIFT: usize = 60;
     const NUM_POWERS: usize = 19;

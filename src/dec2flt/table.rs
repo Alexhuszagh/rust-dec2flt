@@ -1,3 +1,9 @@
+//! Pre-computed tables powers-of-5 for extended-precision representations.
+//!
+//! These tables enable fast scaling of the significant digits
+//! of a float to the decimal exponent, with minimal rounding
+//! errors, in a 128 or 192-bit representation.
+
 pub const SMALLEST_POWER_OF_FIVE: i32 = -342;
 pub const LARGEST_POWER_OF_FIVE: i32 = 308;
 pub const N_POWERS_OF_FIVE: usize = (LARGEST_POWER_OF_FIVE - SMALLEST_POWER_OF_FIVE + 1) as usize;

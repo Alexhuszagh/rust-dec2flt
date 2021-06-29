@@ -1,13 +1,24 @@
+//! Arbitrary-precision decimal class for fallback algorithms.
+//!
+//! This is only used if the fast-path (native floats) and
+//! the Eisel-Lemire algorithm are unable to unambiguously
+//! determine the float.
+
 use core::fmt::{self, Debug};
 
 use crate::dec2flt::common::{is_8digits, parse_digits, ByteSlice};
 
 #[derive(Clone)]
 pub struct Decimal {
+    /// The number of significant digits in the decimal.
     pub num_digits: usize,
+    /// The offset of the decimal point in the significant digits.
     pub decimal_point: i32,
+    /// If the sign of the float is negative.
     pub negative: bool,
+    /// If the number of significant digits stored in the decimal is truncated.
     pub truncated: bool,
+    /// Buffer of the raw digits, in the range [0, 9].
     pub digits: [u8; Self::MAX_DIGITS],
 }
 
@@ -48,10 +59,37 @@ impl Default for Decimal {
 }
 
 impl Decimal {
+    /// The maximum number of digits required to unambiguously round a float.
+    ///
+    /// For a double-precision IEEE-754 float, this required 767 digits,
+    /// so we store the max digits + 1.
+    ///
+    /// We can exactly represent a float in radix `b` from radix 2 if
+    /// `b` is divisible by 2. This function calculates the exact number of
+    /// digits required to exactly represent that float.
+    ///
+    /// According to the "Handbook of Floating Point Arithmetic",
+    /// for IEEE754, with emin being the min exponent, p2 being the
+    /// precision, and b being the radix, the number of digits follows as:
+    ///
+    /// `−emin + p2 + ⌊(emin + 1) log(2, b) − log(1 − 2^(−p2), b)⌋`
+    ///
+    /// For f32, this follows as:
+    ///     emin = -126
+    ///     p2 = 24
+    ///
+    /// For f64, this follows as:
+    ///     emin = -1022
+    ///     p2 = 53
+    ///
+    /// In Python:
+    ///     `-emin + p2 + math.floor((emin+ 1)*math.log(2, b)-math.log(1-2**(-p2), b))`
     pub const MAX_DIGITS: usize = 768;
+    /// The max digits that can be exactly represented in a 64-bit integer.
     pub const MAX_DIGITS_WITHOUT_OVERFLOW: usize = 19;
     pub const DECIMAL_POINT_RANGE: i32 = 2047;
 
+    /// Append a digit to the buffer.
     pub fn try_add_digit(&mut self, digit: u8) {
         if self.num_digits < Self::MAX_DIGITS {
             self.digits[self.num_digits] = digit;
@@ -59,12 +97,14 @@ impl Decimal {
         self.num_digits += 1;
     }
 
+    /// Trim trailing zeros from the buffer.
     pub fn trim(&mut self) {
         while self.num_digits != 0 && self.digits[self.num_digits - 1] == 0 {
             self.num_digits -= 1;
         }
     }
 
+    /// TODO(ahuszagh) Document...
     pub fn round(&self) -> u64 {
         if self.num_digits == 0 || self.decimal_point < 0 {
             return 0;
@@ -92,6 +132,7 @@ impl Decimal {
         n
     }
 
+    /// TODO(ahuszagh) Document..
     pub fn left_shift(&mut self, shift: usize) {
         if self.num_digits == 0 {
             return;
@@ -132,6 +173,7 @@ impl Decimal {
         self.trim();
     }
 
+    /// TODO(ahuszagh) Document..
     pub fn right_shift(&mut self, shift: usize) {
         let mut read_index = 0;
         let mut write_index = 0;
@@ -181,6 +223,7 @@ impl Decimal {
     }
 }
 
+/// Parse a big integer representation of the float as a decimal.
 pub fn parse_decimal(mut s: &[u8]) -> Decimal {
     // can't fail since it follows a call to parse_number
     let mut d = Decimal::default();
@@ -251,6 +294,7 @@ pub fn parse_decimal(mut s: &[u8]) -> Decimal {
     d
 }
 
+/// TODO(ahuszagh) Document...
 fn number_of_digits_decimal_left_shift(d: &Decimal, mut shift: usize) -> usize {
     const TABLE: [u16; 65] = [
         0x0000, 0x0800, 0x0801, 0x0803, 0x1006, 0x1009, 0x100D, 0x1812, 0x1817, 0x181D, 0x2024,

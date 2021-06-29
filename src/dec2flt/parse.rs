@@ -4,6 +4,12 @@ use crate::dec2flt::number::Number;
 
 const MIN_19DIGIT_INT: u64 = 100_0000_0000_0000_0000;
 
+/// Parse 8 digits, loaded as bytes in little-endian order.
+///
+/// This uses the trick where every digit is in [0x030, 0x39],
+/// and therefore can be parsed in 3 multiplications, much
+/// faster than the normal 8.
+/// TODO(ahuszagh) Add reference to the blog explaining the alogrithm.
 fn parse_8digits(mut v: u64) -> u64 {
     const MASK: u64 = 0x0000_00FF_0000_00FF;
     const MUL1: u64 = 0x000F_4240_0000_0064;
@@ -15,12 +21,15 @@ fn parse_8digits(mut v: u64) -> u64 {
     ((v1.wrapping_add(v2) >> 32) as u32) as u64
 }
 
+/// Parse digits until a non-digit character is found.
 fn try_parse_digits(s: &mut AsciiStr<'_>, x: &mut u64) {
+    // may cause overflows, to be handled later
     s.parse_digits(|digit| {
-        *x = x.wrapping_mul(10).wrapping_add(digit as _); // overflows to be handled later
+        *x = x.wrapping_mul(10).wrapping_add(digit as _);
     });
 }
 
+/// Parse up to 19 digits (the max that can be stored in a 64-bit integer).
 fn try_parse_19digits(s: &mut AsciiStr<'_>, x: &mut u64) {
     while *x < MIN_19DIGIT_INT && !s.is_empty() && s.first().is_ascii_digit() {
         let digit = s.first() - b'0';
@@ -29,6 +38,7 @@ fn try_parse_19digits(s: &mut AsciiStr<'_>, x: &mut u64) {
     }
 }
 
+/// Try to parse 8 digits at a time, using an optimized algorithm.
 fn try_parse_8digits(s: &mut AsciiStr<'_>, x: &mut u64) {
     // may cause overflows, to be handled later
     if let Some(v) = s.try_read_u64() {
@@ -49,6 +59,7 @@ fn try_parse_8digits(s: &mut AsciiStr<'_>, x: &mut u64) {
     }
 }
 
+/// Parse the scientific notation component of a float.
 fn parse_scientific(s: &mut AsciiStr<'_>) -> i64 {
     // the first character is 'e'/'E' and scientific mode is enabled
     let start = *s;
@@ -61,8 +72,9 @@ fn parse_scientific(s: &mut AsciiStr<'_>) -> i64 {
     }
     if s.check_first_digit() {
         s.parse_digits(|digit| {
+            // no overflows here, saturate well before overflow
             if exp_num < 0x10000 {
-                exp_num = 10 * exp_num + digit as i64; // no overflows here
+                exp_num = 10 * exp_num + digit as i64;
             }
         });
         if neg_exp {
@@ -71,11 +83,16 @@ fn parse_scientific(s: &mut AsciiStr<'_>) -> i64 {
             exp_num
         }
     } else {
-        *s = start; // ignore 'e' and return back
+        // ignore 'e' and return back
+        *s = start;
         0
     }
 }
 
+/// Try to parse a non-special floating point number.
+///
+/// This creates a representation of the float as the
+/// significant digits and the decimal exponent.
 pub fn parse_number(s: &[u8]) -> Option<(Number, usize)> {
     debug_assert!(!s.is_empty());
 
@@ -175,6 +192,7 @@ pub fn parse_number(s: &[u8]) -> Option<(Number, usize)> {
     ))
 }
 
+/// Parse a partial representation of a special, non-finite float.
 fn parse_partial_inf_nan<F: RawFloat>(s: &[u8]) -> Option<(F, usize)> {
     fn parse_inf_rest(s: &[u8]) -> usize {
         if s.len() >= 8 && s[3..].eq_ignore_case(b"inity") {
@@ -209,6 +227,7 @@ fn parse_partial_inf_nan<F: RawFloat>(s: &[u8]) -> Option<(F, usize)> {
     None
 }
 
+/// Try to parse a special, non-finite float.
 pub fn parse_inf_nan<F: RawFloat>(s: &[u8]) -> Option<F> {
     if let Some((float, rest)) = parse_partial_inf_nan(s) {
         if rest == s.len() {

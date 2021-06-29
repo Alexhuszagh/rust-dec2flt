@@ -1,3 +1,5 @@
+//! Representation of a float as the significant digits and exponent.
+
 use crate::dec2flt::float::RawFloat;
 use crate::dec2flt::fpu::set_precision;
 
@@ -29,6 +31,7 @@ pub struct Number {
 }
 
 impl Number {
+    /// Detect if the float can be accurately reconstructed from native floats.
     fn is_fast_path<F: RawFloat>(&self) -> bool {
         F::MIN_EXPONENT_FAST_PATH <= self.exponent
             && self.exponent <= F::MAX_EXPONENT_DISGUISED_FAST_PATH
